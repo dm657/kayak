@@ -1,0 +1,6 @@
+venv/
+poetry.lock
+.env
+auth/private_key.pem
+auth/public_key.pem
+auth/kayak.db

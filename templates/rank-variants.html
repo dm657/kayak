@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Rank Variants{% endblock %}
+
+{% block content %}
+<h2>Rank the Options</h2>
+<p>Drag the options below to rank them by preference:</p>
+
+<button id="refresh-btn" class="refresh-btn">🔄 Refresh</button>
+
+<ol id="rank-list" class="rank-list">
+    <!-- Options will be inserted here -->
+</ol>
+
+<button id="submit-ranking-btn" class="submit-btn" disabled>Submit Ranking</button>
+<div id="message-box" style="margin-top: 12px;"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+
+<script>
+    let rankedOptions = [];
+    const emojiLabels = ["😡", "☹️", "😐"];
+
+    document.addEventListener("DOMContentLoaded", fetchRankOptions);
+    document.getElementById("refresh-btn").addEventListener("click", fetchRankOptions);
+
+    async function fetchRankOptions() {
+        try {
+            const res = await authorizedFetch("/get-options-to-rank");
+            const data = await res.json();
+
+            rankedOptions = data.options;
+            renderRankList(rankedOptions);
+            document.getElementById("submit-ranking-btn").disabled = rankedOptions.length < 2;
+            showMessage("", false);
+        } catch (err) {
+            showMessage("Failed to load options", true);
+        }
+    }
+
+    function renderRankList(options) {
+        const list = document.getElementById("rank-list");
+        list.innerHTML = "";
+
+        options.forEach((opt, index) => {
+            const li = document.createElement("li");
+            li.className = "rank-item";
+            li.draggable = true;
+            li.dataset.id = opt.option_id;
+
+            const emoji = emojiLabels[index] || "🙂";
+            li.innerHTML = `
+                <span class="emoji-label">${emoji}</span>
+                <span class="rank-text">${opt.text}</span>
+            `;
+
+            li.addEventListener("dragstart", handleDragStart);
+            li.addEventListener("dragover", handleDragOver);
+            li.addEventListener("drop", handleDrop);
+
+            list.appendChild(li);
+        });
+        updateEmojis();
+    }
+
+    let draggedItem = null;
+
+    function handleDragStart(e) {
+        draggedItem = e.target;
+        e.dataTransfer.effectAllowed = "move";
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        const list = e.target.closest("ol");
+        const target = e.target.closest("li");
+        const children = [...list.children];
+
+        if (draggedItem && target && draggedItem !== target) {
+            const draggedIndex = children.indexOf(draggedItem);
+            const targetIndex = children.indexOf(target);
+
+            if (draggedIndex < targetIndex) {
+                list.insertBefore(draggedItem, target.nextSibling);
+            } else {
+                list.insertBefore(draggedItem, target);
+            }
+
+            updateEmojis();
+        }
+    }
+
+    function updateEmojis() {
+        const items = document.querySelectorAll(".rank-item");
+        items.forEach((li, idx) => {
+            const emojiSpan = li.querySelector(".emoji-label");
+            emojiSpan.textContent = emojiLabels[idx] || "🙂";
+        });
+    }
+
+    document.getElementById("submit-ranking-btn").addEventListener("click", async () => {
+        const list = document.getElementById("rank-list");
+        const rankedIds = [...list.children].map(li => parseInt(li.dataset.id));
+
+        try {
+            const res = await authorizedFetch("/rank-variants", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(rankedIds)
+            });
+
+            if (res.ok) {
+                showMessage("Ranking submitted successfully.", false);
+                fetchRankOptions();  // Refresh after submission
+            } else {
+                const data = await res.json();
+                showMessage(data.detail || "Failed to submit ranking.", true);
+            }
+        } catch (err) {
+            showMessage("Error submitting ranking: " + err.message, true);
+        }
+    });
+
+    function showMessage(text, isError) {
+        const box = document.getElementById("message-box");
+        box.textContent = text;
+        box.style.color = isError ? "darkred" : "#333";
+    }
+</script>
+{% endblock %}

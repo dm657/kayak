@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Approve Options{% endblock %}
+
+{% block content %}
+<h2>Approve or Reject Options</h2>
+
+<form id="approval-form" onsubmit="handleSubmit(event)">
+    <table class="approval-table">
+        <thead>
+            <tr>
+                <th class="approval-header" onclick="toggleSort()">Text</th>
+                <th class="approval-header" onclick="toggleColumnSelect('approve')">Approve</th>
+                <th class="approval-header" onclick="toggleColumnSelect('reject')">Reject</th>
+            </tr>
+        </thead>
+        <tbody id="options-body">
+            <!-- Опции будут загружены динамически -->
+        </tbody>
+    </table>
+    <button type="submit" class="submit-btn" style="margin-top: 20px;">Submit</button>
+</form>
+
+<div id="message-box" style="margin-top: 12px;"></div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let options = [];
+    let sortedByText = false;
+
+    document.addEventListener("DOMContentLoaded", fetchOptions);
+
+    async function fetchOptions() {
+        try {
+            const res = await authorizedFetch("/get-options-to-approve");
+            const data = await res.json();
+
+
+            options = data.options;
+            renderOptions(options);
+        } catch (err) {
+            showMessage("Error loading options", true);
+        }
+    }
+
+    function renderOptions(options) {
+        const tbody = document.getElementById("options-body");
+        tbody.innerHTML = "";
+
+        options.forEach(opt => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${opt.text}</td>
+                <td><input type="checkbox" class="approve-checkbox" data-id="${opt.option_id}" onclick="toggleCheckbox(this)"></td>
+                <td><input type="checkbox" class="reject-checkbox" data-id="${opt.option_id}" onclick="toggleCheckbox(this)"></td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function toggleCheckbox(clicked) {
+        const row = clicked.closest("tr");
+        const checkboxes = row.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            if (cb !== clicked) cb.checked = false;
+        });
+    }
+
+    function toggleSort() {
+        sortedByText = !sortedByText;
+        if (sortedByText) {
+            options.sort((a, b) => a.text.toLowerCase().localeCompare(b.text.toLowerCase()));
+        } else {
+            options.sort((a, b) => a.option_id - b.option_id);
+        }
+        renderOptions(options);
+    }
+
+    function toggleColumnSelect(type) {
+        const selector = type === 'approve' ? '.approve-checkbox' : '.reject-checkbox';
+        const otherSelector = type === 'approve' ? '.reject-checkbox' : '.approve-checkbox';
+
+        const checkboxes = document.querySelectorAll(selector);
+        const otherCheckboxes = document.querySelectorAll(otherSelector);
+
+        const allChecked = [...checkboxes].every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+        if (!allChecked) {
+            otherCheckboxes.forEach(cb => cb.checked = false);
+        }
+    }
+
+    async function handleSubmit(event) {
+        event.preventDefault();
+
+        const approved = [];
+        const rejected = [];
+
+        document.querySelectorAll('.approve-checkbox').forEach(cb => {
+            if (cb.checked) approved.push(Number(cb.dataset.id));
+        });
+
+        document.querySelectorAll('.reject-checkbox').forEach(cb => {
+            if (cb.checked) rejected.push(Number(cb.dataset.id));
+        });
+
+        try {
+            const res = await authorizedFetch("/approve-options", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    options_to_add: { options: approved },
+                    options_to_del: { options: rejected }
+                })
+            });
+
+            const data = await res.json();
+
+
+            if (data.message === 'OK') {
+                showMessage("Options updated successfully.", false);
+                fetchOptions();
+            } else if (data.message === 'Error') {
+                showMessage(data.detail || "Error occurred.", true);
+            }
+        } catch (err) {
+            showMessage("Request failed: " + err.message, true);
+        }
+    }
+
+    function showMessage(text, isError) {
+        const box = document.getElementById("message-box");
+        box.textContent = text;
+        box.style.color = isError ? "darkred" : "#333";
+    }
+</script>
+{% endblock %}

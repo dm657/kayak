@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Add Option{% endblock %}
+
+{% block content %}
+<h2>Add New Option</h2>
+<div class="form-container">
+    <input type="text" id="option-input" placeholder="Enter option text" class="input-text">
+    <button id="submit-button" class="submit-btn">Add Option</button>
+    <p id="status-message" class="status-message"></p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById("submit-button").addEventListener("click", async () => {
+    const input = document.getElementById("option-input");
+    const button = document.getElementById("submit-button");
+    const statusMessage = document.getElementById("status-message");
+    const text = input.value.trim();
+
+    if (!text) {
+        showStatus('Please enter some text.', 'error');
+        return;
+    }
+
+    button.disabled = true;
+    showStatus("Submitting...", "neutral");
+
+    try {
+        const response = await authorizedFetch("/add-option", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text })
+        });
+
+        const data = await response.json();
+
+        if (data.message === "OK") {
+            input.value = "";
+            input.focus();
+            showStatus("Option added successfully.", "success");
+        } else if (data.message === "Error") {
+            showStatus(data.detail || "Failed to add option.", "error");
+        } else {
+            showStatus("Unexpected server response.", "error");
+        }
+
+    } catch (error) {
+        console.error("Error while adding option:", error);
+        showStatus('An error occurred.', 'error');
+    } finally {
+        button.disabled = false;
+    }
+});
+
+function showStatus(message, type) {
+    const statusMessage = document.getElementById("status-message");
+    statusMessage.textContent = message;
+    statusMessage.className = `status-message ${type}`;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Administration{% endblock %}
+
+{% block content %}
+<h2 class="page-title">Administration</h2>
+
+<!-- Вкладки -->
+<div class="tabs">
+    <button class="tab-button active" data-tab="options">Options</button>
+    <button class="tab-button" data-tab="users">Users</button>
+</div>
+
+<!-- Контейнеры вкладок -->
+<div id="options-tab" class="tab-content active">
+    <div id="options-list" class="option-list"></div>
+</div>
+<div id="users-tab" class="tab-content">
+    <div class="table-container">
+        <table class="sticky-table">
+            <thead>
+                <tr><th>Username</th><th>Status</th></tr>
+            </thead>
+            <tbody id="user-table-body"></tbody>
+        </table>
+    </div>
+    <div class="sticky-buttons">
+        <button onclick="submitUserStatuses()">Submit</button>
+        <button onclick="cancelUserEdits()">Cancel</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function showTab(tab) {
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        document.querySelector(`.tab-button[data-tab="${tab}"]`).classList.add('active');
+        document.getElementById(`${tab}-tab`).classList.add('active');
+
+        if (tab === 'options') {
+            fetchOptions();
+        } else if (tab === 'users') {
+            fetchUsers();
+        }
+    }
+
+    async function fetchOptions() {
+        const response = await authorizedFetch('/administrate/get-options-list');
+        const data = await response.json();
+        const options = data.result || {};
+        const container = document.getElementById('options-list');
+        container.innerHTML = '';
+
+        Object.entries(options).forEach(([id, [text, count]]) => {
+            const row = document.createElement('div');
+            row.className = 'option-row';
+
+            row.innerHTML = `
+                <span class="option-text" data-id="${id}">${text}</span>
+                <span class="mention-count">${count} mentions</span>
+                <button class="icon-button" title="Edit" onclick="startEdit(this)">✏️</button>
+                <button class="icon-button" title="Delete" onclick="deleteOption(${id}, this)">🗑️</button>
+            `;
+
+            container.appendChild(row);
+        });
+    }
+
+    function startEdit(btn) {
+        const span = btn.parentElement.querySelector('.option-text');
+        const optionId = span.dataset.id;
+        const originalText = span.textContent;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-input';
+        input.value = originalText;
+
+        span.replaceWith(input);
+        input.focus();
+
+        btn.title = "Save";
+        btn.textContent = "💾";
+        btn.onclick = () => finishEdit(input, optionId, btn);
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                btn.click();
+            } else if (e.key === 'Escape') {
+                const span = document.createElement('span');
+                span.className = 'option-text';
+                span.dataset.id = optionId;
+                span.textContent = originalText;
+
+                input.replaceWith(span);
+                btn.title = "Edit";
+                btn.textContent = "✏️";
+                btn.onclick = () => startEdit(btn);
+            }
+        });
+    }
+
+    async function finishEdit(input, optionId, btn) {
+        const newText = input.value.trim();
+        if (!newText) return;
+
+        const body = JSON.stringify({ option_id: parseInt(optionId), text: newText });
+
+        const response = await authorizedFetch('/administrate/edit-option', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body
+        });
+
+        if (response.ok) {
+            const span = document.createElement('span');
+            span.className = 'option-text';
+            span.dataset.id = optionId;
+            span.textContent = newText;
+
+            input.replaceWith(span);
+            btn.title = "Edit";
+            btn.textContent = "✏️";
+            btn.onclick = () => startEdit(btn);
+        } else {
+            alert('Failed to save changes.');
+        }
+    }
+
+    async function deleteOption(id, btn) {
+        if (!confirm("Are you sure you want to delete this option?")) return;
+
+        const response = await authorizedFetch(`/administrate/delete-option?option_id=${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            const row = btn.closest('.option-row');
+            row.remove();
+        } else {
+            alert('Failed to delete option.');
+        }
+    }
+
+    let originalStatuses = [];
+
+    async function fetchUsers() {
+        const res = await authorizedFetch('/administrate/get-users-list');
+        const data = await res.json();
+        const users = data.result;
+        const tbody = document.getElementById('user-table-body');
+        tbody.innerHTML = '';
+        originalStatuses = users.map(u => ({ user_id: u.user_id, status: u.status }));
+
+        for (const user of users) {
+            const tr = document.createElement('tr');
+
+            const tdName = document.createElement('td');
+            tdName.textContent = user.username;
+            tdName.title = `ID: ${user.user_id}${user.email ? `, Email: ${user.email}` : ''}`;
+
+            const tdStatus = document.createElement('td');
+            const select = document.createElement('select');
+            ["admin", "user", "superuser", "blocked"].forEach(status => {
+                const opt = document.createElement('option');
+                opt.value = status;
+                opt.textContent = status;
+                if (user.status === status) opt.selected = true;
+                select.appendChild(opt);
+            });
+            tdStatus.appendChild(select);
+
+            tr.appendChild(tdName);
+            tr.appendChild(tdStatus);
+            tbody.appendChild(tr);
+        }
+    }
+
+    function getEditedStatuses() {
+        const rows = document.querySelectorAll('#user-table-body tr');
+        const changes = [];
+        rows.forEach((row, i) => {
+            const select = row.querySelector('select');
+            const newStatus = select.value;
+            if (newStatus !== originalStatuses[i].status) {
+                changes.push({ user_id: originalStatuses[i].user_id, status: newStatus });
+            }
+        });
+        return changes;
+    }
+
+    async function submitUserStatuses() {
+        const changes = getEditedStatuses();
+        if (changes.length === 0) return;
+
+        const res = await authorizedFetch('/administrate/edit_users_statuses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changes)
+        });
+        if (res.ok) {
+            alert('Statuses updated.');
+            fetchUsers();
+        }
+    }
+
+    function cancelUserEdits() {
+        fetchUsers();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Назначаем обработчики кнопок вкладок
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                showTab(tab);
+            });
+        });
+
+        // Изначально загружаем активную вкладку
+        showTab('options');
+    });
+</script>
+{% endblock %}

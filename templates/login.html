@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="form-container">
+<h1>Login Page</h1>
+
+<form id="login-form">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required><br><br>
+
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required><br><br>
+
+    <button type="submit">Login</button>
+    <button type="button" id="guest-login">Login as Guest</button>
+</form>
+
+<p id="error-message" style="color: red;"></p>
+</div>
+<script>
+    async function login(username, password) {
+        // Очистить старые токены
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        document.getElementById("error-message").textContent = "";
+
+        try {
+            const response = await fetch("/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: new URLSearchParams({ username, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('refresh_token', data.refresh_token);
+
+<!--                window.location.href = "/show-ranks";  // переход на главную страницу-->
+<!--                window.location.href = "/auth/me";  // переход на главную страницу-->
+                    const accessToken = localStorage.getItem('access_token');
+                    if (accessToken) {
+                        window.location.replace('/ranked-data');
+
+
+                    }
+
+
+            } else {
+                const errorText = await response.text();
+                document.getElementById("error-message").textContent = errorText || "Login failed.";
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            document.getElementById("error-message").textContent = "An unexpected error occurred.";
+        }
+    }
+
+    document.getElementById("login-form").addEventListener("submit", function(event) {
+        event.preventDefault();
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        login(username, password);
+    });
+
+    document.getElementById("guest-login").addEventListener("click", function() {
+        login("guest", "guest_password_888");
+    });
+</script>
+
+</body>
+</html>
+
+
+

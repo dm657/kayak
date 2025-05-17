@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "what-worse-lite"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.6"
+sqlalchemy = "^2.0.36"
+psycopg2 = "^2.9.10"
+jinja2 = "^3.1.5"
+uvicorn = "^0.34.0"
+python-multipart = "^0.0.20"
+python-dotenv = "^1.0.1"
+networkx = "^3.4.2"
+numpy = "^2.2.2"
+scipy = "^1.15.1"
+pytest = "^8.3.4"
+pyjwt = {extras = ["crypto"], version = "^2.10.1"}
+bcrypt = "^4.3.0"
+pydantic = {extras = ["email"], version = "^2.10.6"}
+pytest-dotenv = "^0.5.2"
+httpx = "^0.28.1"
+aiosqlite = "^0.21.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

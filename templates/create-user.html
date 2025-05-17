@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create User</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Create New User</h2>
+
+    <form id="create-user-form" onsubmit="handleUserCreate(event)">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+
+        <label for="email">Email (optional):</label>
+        <input type="email" id="email" name="email">
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+
+        <button type="submit">Create User</button>
+    </form>
+
+    <div id="message-box" class="message-box"></div>
+
+    <div class="login-link">
+        Already have an account? <a href="/auth/login">Log in here</a>
+    </div>
+</div>
+
+<script>
+    async function handleUserCreate(event) {
+        event.preventDefault();
+
+        const username = document.getElementById("username").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        const payload = { username, email: email || null, password };
+
+        try {
+            const res = await fetch("/auth/create-user", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            const box = document.getElementById("message-box");
+            box.textContent = data.message || "Unknown response";
+            box.style.color = data.result === "ok" ? "#333" : "darkred";
+
+            if (data.result === "ok") {
+                document.getElementById("create-user-form").reset();
+            }
+        } catch (err) {
+            const box = document.getElementById("message-box");
+            box.textContent = "Request failed: " + err.message;
+            box.style.color = "darkred";
+        }
+    }
+</script>
+
+</body>
+</html>

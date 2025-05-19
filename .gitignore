@@ -1,6 +1,13 @@
-venv/
+venv3/
 poetry.lock
 .env
+.git
+.idea
 auth/private_key.pem
 auth/public_key.pem
 auth/kayak.db
+/auth/__pycache__
+/auth_utils/__pycache__
+__pycache__/
+tests/
+kayak.db

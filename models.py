@@ -100,4 +100,7 @@ if __name__ == '__main__':
     setup_db()
     with new_sync_session() as session_:
         session_.add(Option(option_id=1, text='Плавать на байдарке'))
+        session_.add(User(username='root',
+                          password=b'$2b$12$5mgioeDBS8LHnfl0icYQzeCsbFlS79vxVsVmO2e3bpYU.uupsk61O',
+                          status='admin'))
         session_.commit()

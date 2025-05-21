@@ -44,6 +44,5 @@ def graph_builder(user_id: int = None) -> Callable:
 
 
 def compute_pagerank(g) -> dict:
-    print(f'\n===========\n{g=}')
     data = nx.pagerank(g, weight='weight')
     return data

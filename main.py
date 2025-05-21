@@ -37,15 +37,15 @@ def show_add_option(request: Request, ):
 
 @app.get('/get-options-to-approve', status_code=status.HTTP_200_OK)
 async def get_options_to_approve(jwt_token: Annotated[JWTToken,
-                                 Depends(TokenVerifier(check_status=['superuser', 'admin']))]):
+Depends(TokenVerifier(check_status=['superuser', 'admin']))]):
     options = await cruds.get_options_to_approve()
     return {'jwt_token': jwt_token.model_dump(exclude_none=True), 'options': options}
 
 
 @app.post('/approve-options', status_code=status.HTTP_201_CREATED)
 async def approve_options(options_to_add: OptionsList, options_to_del: OptionsList,
-                          jwt_token: Annotated[JWTToken,
-                          Depends(TokenVerifier(check_status=['superuser', 'admin']))]):
+                          jwt_token: Annotated[JWTToken, Depends(
+                          TokenVerifier(check_status=['superuser', 'admin']))]):
     res = await cruds.approve_options(options_to_add.options, options_to_del.options)
     return {'jwt_token': jwt_token.model_dump(exclude_none=True)} | res
 
@@ -57,7 +57,7 @@ def show_rank_variants(request: Request):
 
 @app.get('/get-options-to-rank', status_code=status.HTTP_200_OK)
 async def add_option(jwt_token:
-Annotated[JWTToken, Depends(TokenVerifier())]):
+                     Annotated[JWTToken, Depends(TokenVerifier())]):
     res = await cruds.get_options_to_rank()
     options = [Option(option_id=1, text='плавать на байдарке'), ]
     options.extend((Option.model_validate(o, from_attributes=True) for o in res))
@@ -65,8 +65,8 @@ Annotated[JWTToken, Depends(TokenVerifier())]):
 
 
 @app.post('/rank-variants', status_code=status.HTTP_201_CREATED, )
-async def rank_variants(options: list[int], jwt_token:
-Annotated[JWTToken, Depends(TokenVerifier(show_user_id=True))]):
+async def rank_variants(options: list[int], jwt_token: Annotated[JWTToken, Depends(
+                        TokenVerifier(show_user_id=True))]):
     await cruds.submit_answer(user_id=jwt_token.user_id, options=options)
     return {'jwt_token': jwt_token.model_dump(exclude={'user_id'}, exclude_none=True)}
 
@@ -83,8 +83,7 @@ async def calc_ranks(jwt_token: Annotated[JWTToken, Depends(TokenVerifier(show_u
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     data = await cruds.get_ranks(user_id)
     ranks = compute_pagerank(graph_builder(user_id)(data[0]))
-    print(ranks)
-    # return ranks
+
     result = {k: (v, data[1].get(k)) for k, v in ranks.items()}
     return {'jwt_token': jwt_token.model_dump(exclude={'user_id'}, exclude_none=True),
             'result': result}

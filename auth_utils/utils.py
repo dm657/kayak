@@ -10,6 +10,13 @@ from jwt import PyJWK
 import bcrypt
 
 from settings import auth_jwt, BASE_DIR
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
+PRIVATE_KEY = os.getenv('PRIVATE_KEY')
+PUBLIC_KEY = os.getenv('PUBLIC_KEY')
 
 
 def encode_jwt(
@@ -18,7 +25,8 @@ def encode_jwt(
     algorithm: str | None = auth_jwt.algorithm,
 ):
     if key is None:  # reading file only when func called. no FileNotExist err
-        key = auth_jwt.private_key_path.read_text()
+        # key = auth_jwt.private_key_path.read_text()
+        key = PRIVATE_KEY
     encoded = jwt.encode(payload=payload, key=key, algorithm=algorithm)
     return encoded
 
@@ -29,7 +37,8 @@ def decode_jwt(
         algorithm: str = auth_jwt.algorithm,
 ):
     if key is None:
-        key = auth_jwt.public_key_path.read_text()
+        # key = auth_jwt.public_key_path.read_text()
+        key = PUBLIC_KEY
     decoded = jwt.decode(token, key, algorithm)
     return decoded
 

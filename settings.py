@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 BASE_DIR = Path(__file__).parent
-USING_SQLITE_INSTEAD_OF_BIG_DB = True
+USING_SQLITE_INSTEAD_OF_BIG_DB = False
 
 
 class App(BaseModel):
